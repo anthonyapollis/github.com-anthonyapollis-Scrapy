@@ -6,7 +6,13 @@
   },
   "auth": {
     "type": "bearer",
-    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
   },
   "event": [
     {
@@ -33,10 +39,10 @@
           "  url: url + '/api/oauth/refresh-token',",
           "  method: 'POST',",
           "  header: [",
-          "    { key: 'Content-Type', value: 'application/json' },",
+          "    { key: 'Content-Type', value: 'application/x-www-form-urlencoded' },",
           "    { key: 'Accept', value: 'application/json' }",
           "  ],",
-          "  body: { mode: 'raw', raw: JSON.stringify({ refresh_token: refreshToken }) }",
+          "  body: { mode: 'urlencoded', urlencoded: [{ key: 'refresh_token', value: refreshToken }] }",
           "}, (err, res) => {",
           "  if (err) { throw err; }",
           "  if (res.code !== 200) {",
@@ -65,25 +71,41 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Refresh returns 200', () => pm.response.to.have.status(200));",
-                  "const body = pm.response.json();",
-                  "pm.test('Response has access_token', () => pm.expect(body.access_token).to.be.a('string').and.not.empty);",
-                  "pm.environment.set('access_token', body.access_token);",
-                  "if (body.refresh_token) { pm.environment.set('refresh_token', body.refresh_token); }",
-                  "pm.environment.set('access_token_expires_at', String(Date.now() + Number(body.expires_in || 3600) * 1000));"
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test('Response has access_token', () => pm.expect(body.access_token).to.be.a('string').and.not.empty);",
+                  "  pm.environment.set('access_token', body.access_token);",
+                  "  if (body.refresh_token) { pm.environment.set('refresh_token', body.refresh_token); }",
+                  "  pm.environment.set('access_token_expires_at', String(Date.now() + Number(body.expires_in || 3600) * 1000));",
+                  "}"
                 ]
               }
             }
           ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Accept", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
             ],
             "body": {
-              "mode": "raw",
-              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "refresh_token",
+                  "value": "{{refresh_token}}",
+                  "type": "text"
+                }
+              ]
             },
             "url": "{{url}}/api/oauth/refresh-token"
           }
@@ -98,14 +120,20 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Authenticated ping returns 200', () => pm.response.to.have.status(200));"
+              "pm.test('Authenticated ping returns 200', () => pm.response.to.have.status(200));",
+              "pm.test('Response is pong', () => pm.expect(pm.response.json().message).to.eql('pong'));"
             ]
           }
         }
       ],
       "request": {
         "method": "GET",
-        "header": [{ "key": "Accept", "value": "application/json" }],
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
         "url": "{{url}}/api/ping"
       }
     }
