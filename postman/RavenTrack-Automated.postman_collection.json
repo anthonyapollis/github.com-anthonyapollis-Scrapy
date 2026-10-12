@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "RavenTrack API [Automated]",
-    "description": "Self-authenticating RavenTrack collection. Before every request the collection pre-request script checks the stored access token; if it is missing or expires within 5 minutes it calls /api/oauth/refresh-token, then saves the new access token, the rotated refresh token and the expiry time to the active environment.",
+    "description": "Self-authenticating RavenTrack collection. RavenTrack access tokens last one year; the /api/oauth/refresh-token endpoint takes the current token as a Bearer header and returns a new one. Before every request the collection pre-request script checks the stored token; if it is missing or expires within 30 days it calls the refresh endpoint and saves the new token and expiry to the active environment.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -23,15 +23,18 @@
           "// Skip the refresh request itself so it cannot recurse.",
           "if (pm.info.requestName === 'Refresh Access Token') { return; }",
           "",
-          "const url = pm.environment.get('url');",
+          "// Accept either variable name (Codex's environment uses base_url).",
+          "const url = pm.environment.get('url') || pm.environment.get('base_url');",
           "const refreshToken = pm.environment.get('refresh_token');",
           "const accessToken = pm.environment.get('access_token');",
           "const expiresAt = Number(pm.environment.get('access_token_expires_at') || 0);",
-          "const skewMs = 5 * 60 * 1000;",
+          "const renewWindowMs = 30 * 24 * 60 * 60 * 1000;",
           "",
-          "if (accessToken && Date.now() < expiresAt - skewMs) { return; }",
+          "if (accessToken && Date.now() < expiresAt - renewWindowMs) { return; }",
           "",
-          "if (!url || !refreshToken) {",
+          "// The refresh endpoint authenticates with the current token, newest first.",
+          "const currentToken = accessToken || refreshToken;",
+          "if (!url || !currentToken) {",
           "  throw new Error('Set \"url\" and \"refresh_token\" in the RavenTrack - JSB Sports environment.');",
           "}",
           "",
@@ -39,19 +42,18 @@
           "  url: url + '/api/oauth/refresh-token',",
           "  method: 'POST',",
           "  header: [",
-          "    { key: 'Content-Type', value: 'application/x-www-form-urlencoded' },",
+          "    { key: 'Authorization', value: 'Bearer ' + currentToken },",
           "    { key: 'Accept', value: 'application/json' }",
-          "  ],",
-          "  body: { mode: 'urlencoded', urlencoded: [{ key: 'refresh_token', value: refreshToken }] }",
+          "  ]",
           "}, (err, res) => {",
           "  if (err) { throw err; }",
           "  if (res.code !== 200) {",
-          "    throw new Error('Token refresh failed: HTTP ' + res.code + ' ' + res.text());",
+          "    throw new Error('Token refresh failed: HTTP ' + res.code + ' ' + res.text() + ' - the token has expired or is invalid; request a new one from RavenTrack/JSB Sports.');",
           "  }",
           "  const body = res.json();",
           "  pm.environment.set('access_token', body.access_token);",
           "  if (body.refresh_token) { pm.environment.set('refresh_token', body.refresh_token); }",
-          "  pm.environment.set('access_token_expires_at', String(Date.now() + Number(body.expires_in || 3600) * 1000));",
+          "  pm.environment.set('access_token_expires_at', String(Date.now() + Number(body.expires_in || 31536000) * 1000));",
           "  console.log('RavenTrack: access token refreshed');",
           "});"
         ]
@@ -76,7 +78,7 @@
                   "  pm.test('Response has access_token', () => pm.expect(body.access_token).to.be.a('string').and.not.empty);",
                   "  pm.environment.set('access_token', body.access_token);",
                   "  if (body.refresh_token) { pm.environment.set('refresh_token', body.refresh_token); }",
-                  "  pm.environment.set('access_token_expires_at', String(Date.now() + Number(body.expires_in || 3600) * 1000));",
+                  "  pm.environment.set('access_token_expires_at', String(Date.now() + Number(body.expires_in || 31536000) * 1000));",
                   "}"
                 ]
               }
@@ -84,29 +86,22 @@
           ],
           "request": {
             "auth": {
-              "type": "noauth"
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{refresh_token}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/x-www-form-urlencoded"
-              },
               {
                 "key": "Accept",
                 "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "urlencoded",
-              "urlencoded": [
-                {
-                  "key": "refresh_token",
-                  "value": "{{refresh_token}}",
-                  "type": "text"
-                }
-              ]
-            },
             "url": "{{url}}/api/oauth/refresh-token"
           }
         }
