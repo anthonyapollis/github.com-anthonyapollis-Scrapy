@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Alea AGMS",
-    "description": "Alea AGMS Stats API (https://lb.aleacontrol.com/AGMS). The pre-request script fills {{start_date}}/{{end_date}} with today (end date exclusive, matching Trevor's one-day sample 07 -> 08). Alea answers HTTP 200 even when the login is rejected - check ResponseCode in the body: 2 = reachable but not authenticated.",
+    "description": "Alea AGMS Stats API. Auth (verified 13 Oct 2026): POST {{alea_base_url}}/token with form fields grant_type=password, userName, password returns an access_token; send it as Authorization: Bearer on /api/Stats. The collection pre-request script does this automatically using alea_username / alea_password. Without a valid token Stats answers HTTP 200 with ResponseCode 2.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -17,7 +17,27 @@
           "const start = new Date(today); start.setUTCDate(start.getUTCDate() - daysBack);",
           "const end = new Date(today); end.setUTCDate(end.getUTCDate() + 1);",
           "pm.variables.set('start_date', fmt(start));",
-          "pm.variables.set('end_date', fmt(end));"
+          "pm.variables.set('end_date', fmt(end));",
+          "",
+          "// Get a Bearer token from /token (password grant) unless we already have a fresh one.",
+          "const tok = pm.environment.get('alea_access_token');",
+          "const exp = Number(pm.environment.get('alea_token_expires_at') || 0);",
+          "if (!tok || Date.now() > exp - 60000) {",
+          "  pm.sendRequest({",
+          "    url: pm.environment.get('alea_base_url') + '/token', method: 'POST',",
+          "    header: [{ key: 'Content-Type', value: 'application/x-www-form-urlencoded' }, { key: 'Accept', value: 'application/json' }],",
+          "    body: { mode: 'urlencoded', urlencoded: [",
+          "      { key: 'grant_type', value: 'password' },",
+          "      { key: 'userName', value: pm.environment.get('alea_username') },",
+          "      { key: 'password', value: pm.environment.get('alea_password') } ] }",
+          "  }, (err, res) => {",
+          "    if (err) throw err;",
+          "    if (res.code !== 200) throw new Error('Alea /token failed: HTTP ' + res.code + ' ' + res.text().slice(0, 200));",
+          "    const b = res.json();",
+          "    pm.environment.set('alea_access_token', b.access_token);",
+          "    pm.environment.set('alea_token_expires_at', String(Date.now() + Number(b.expires_in || 3600) * 1000));",
+          "  });",
+          "}"
         ]
       }
     }
@@ -58,33 +78,23 @@
           {
             "key": "Accept",
             "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "{{alea_authorization}}",
-            "description": "Set if Alea issues a token/API key; untick if unused"
-          },
-          {
-            "key": "Cookie",
-            "value": "{{alea_cookie}}",
-            "description": "Approved session-cookie workflow only; untick if unused"
-          },
-          {
-            "key": "LoginUserName",
-            "value": "{{alea_username}}",
-            "disabled": true
-          },
-          {
-            "key": "LoginPassword",
-            "value": "{{alea_password}}",
-            "disabled": true
           }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"Date\": { \"StartDate\": \"{{start_date}}\", \"EndDate\": \"{{end_date}}\" },\n  \"groupBy\": [4],\n  \"groups\": [\"{{alea_group_id}}\"],\n  \"locations\": null,\n  \"statisticBy\": null,\n  \"games\": null,\n  \"CCY\": null,\n  \"paymentSources\": null\n}"
         },
-        "url": "{{alea_base_url}}/api/Stats"
+        "url": "{{alea_base_url}}/api/Stats",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{alea_access_token}}",
+              "type": "string"
+            }
+          ]
+        }
       }
     }
   ]

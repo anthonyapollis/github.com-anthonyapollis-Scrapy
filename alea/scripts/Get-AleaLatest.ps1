@@ -42,8 +42,17 @@ if (-not ($env:ALEA_AUTHORIZATION -or $env:ALEA_COOKIE -or ($env:ALEA_USER -and 
 }
 $headers = @{ Accept = "application/json" }
 if ($env:ALEA_AUTHORIZATION) { $headers.Authorization = $env:ALEA_AUTHORIZATION }
-if ($env:ALEA_COOKIE)        { $headers.Cookie = $env:ALEA_COOKIE }
-if ($env:ALEA_USER)          { $headers.LoginUserName = $env:ALEA_USER; $headers.LoginPassword = $env:ALEA_PASS }
+elseif ($env:ALEA_USER) {
+  # Password grant on /token -> Bearer token (verified endpoint, 13 Oct 2026).
+  $tokenUrl = ($Url -replace '/api/Stats$', '') + '/token'
+  try {
+    $t = Invoke-RestMethod -Uri $tokenUrl -Method Post -ContentType 'application/x-www-form-urlencoded' `
+           -Body @{ grant_type = 'password'; userName = $env:ALEA_USER; password = $env:ALEA_PASS }
+  } catch { throw "Alea login failed at $tokenUrl : $($_.Exception.Message)" }
+  $headers.Authorization = "Bearer $($t.access_token)"
+  Write-Host "Logged in to Alea (token expires in $($t.expires_in)s)."
+}
+if ($env:ALEA_COOKIE) { $headers.Cookie = $env:ALEA_COOKIE }
 
 # Trevor's sample uses StartDate 07 / EndDate 08 for one day, so the end
 # date is treated as exclusive: today = today .. tomorrow.
@@ -59,7 +68,6 @@ $body = [ordered]@{
   CCY            = $null
   paymentSources = $null
 }
-if ($env:ALEA_USER) { $body.LoginUserName = $env:ALEA_USER; $body.LoginPassword = $env:ALEA_PASS }
 $json = $body | ConvertTo-Json -Depth 6
 
 Write-Host "Calling $Url for $($body.Date.StartDate) .. $($body.Date.EndDate)"
