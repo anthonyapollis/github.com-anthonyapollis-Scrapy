@@ -1,0 +1,12 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is git-ignored.
+
+subscription_id = "00000000-0000-0000-0000-000000000000"
+alert_emails    = ["you@example.com"]
+
+# Optional: your public IP, for connecting to Postgres from your machine (curl ifconfig.me)
+my_ip = ""
+
+# Optional: Entra users to create and add to the data team group
+users = {
+  # jdoe = { display_name = "John Doe", department = "Data" }
+}
