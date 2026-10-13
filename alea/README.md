@@ -8,7 +8,9 @@ alea/
 
 **Endpoint:** `POST https://lb.aleacontrol.com/AGMS/api/Stats`. The request format comes from Trevor's email of 12 Oct 2026.
 
-**Status (13 Oct 2026, verified by Codex):** the server is reachable and returns HTTP 200 with `{"ResponseCode":2,"Message":""}`. That means the request was **not authenticated**. Alea always answers HTTP 200, so `ResponseCode` is the real check.
+**Status (13 Oct 2026 16:31 UTC, verified):** login via `/AGMS/token` → HTTP 200 with a Bearer token. `/api/Stats` for today with **groups = null** → HTTP 200, `ResponseCode 0`, 35 location rows. Without a token, Stats returns `ResponseCode 2`. Alea always answers HTTP 200, so `ResponseCode` is the real check.
+
+**Leave the group filter empty.** The group GUID from Trevor's email (`{609f0dd2-…}`) returns `ResponseCode 0` with `"No locations available for Geo slice"` and no rows.
 
 ## Authentication (found 13 Oct 2026)
 Alea's `/api/Stats` answers with `WWW-Authenticate: Bearer`. Its login endpoint is a standard password grant:
