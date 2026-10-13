@@ -51,14 +51,38 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "Accept", "value": "application/json" },
-          { "key": "LoginUserName", "value": "{{alea_username}}" },
-          { "key": "LoginPassword", "value": "{{alea_password}}" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "{{alea_authorization}}",
+            "description": "Set if Alea issues a token/API key; untick if unused"
+          },
+          {
+            "key": "Cookie",
+            "value": "{{alea_cookie}}",
+            "description": "Approved session-cookie workflow only; untick if unused"
+          },
+          {
+            "key": "LoginUserName",
+            "value": "{{alea_username}}",
+            "disabled": true
+          },
+          {
+            "key": "LoginPassword",
+            "value": "{{alea_password}}",
+            "disabled": true
+          }
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"LoginUserName\": \"{{alea_username}}\",\n  \"LoginPassword\": \"{{alea_password}}\",\n  \"Date\": { \"StartDate\": \"{{start_date}}\", \"EndDate\": \"{{end_date}}\" },\n  \"groupBy\": [4],\n  \"groups\": [\"{609f0dd2-1ad2-453a-b57e-f6ac8283d30a}\"],\n  \"locations\": null,\n  \"statisticBy\": null,\n  \"games\": null,\n  \"CCY\": null,\n  \"paymentSources\": null\n}"
+          "raw": "{\n  \"Date\": { \"StartDate\": \"{{start_date}}\", \"EndDate\": \"{{end_date}}\" },\n  \"groupBy\": [4],\n  \"groups\": [\"{{alea_group_id}}\"],\n  \"locations\": null,\n  \"statisticBy\": null,\n  \"games\": null,\n  \"CCY\": null,\n  \"paymentSources\": null\n}"
         },
         "url": "{{alea_base_url}}/api/Stats"
       }

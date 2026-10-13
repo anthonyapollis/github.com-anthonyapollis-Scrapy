@@ -1,9 +1,12 @@
 <#
 Tests the Alea AGMS Stats API and exports the 10 latest rows to Excel.
 
+  Settings come from a .env file in the repo root (copy .env.example) or
+  environment variables: ALEA_GROUP_ID plus one auth method -
+  ALEA_AUTHORIZATION (header value), ALEA_COOKIE (session cookie) or
+  ALEA_USER / ALEA_PASS (LoginUserName / LoginPassword).
+
   Usage (PowerShell):
-    $env:ALEA_USER = "your LoginUserName"
-    $env:ALEA_PASS = "your LoginPassword"
     .\Get-AleaLatest.ps1                     # today
     .\Get-AleaLatest.ps1 -Days 7 -Top 10     # last 7 days up to today
 
@@ -17,22 +20,36 @@ param(
   [string]$Url = "https://lb.aleacontrol.com/AGMS/api/Stats",
   # Defaults copied from Trevor's sample request (12 Oct 2026).
   [int[]]$GroupBy = @(4),                                  # 4 = Location
-  [string[]]$Groups = @("{609f0dd2-1ad2-453a-b57e-f6ac8283d30a}"),
+  [string[]]$Groups = @(),                                 # default: $env:ALEA_GROUP_ID
   [object]$Games = $null                                   # $null = all games
 )
 $ErrorActionPreference = "Stop"
 
-if (-not $env:ALEA_USER -or -not $env:ALEA_PASS) {
-  throw "Set `$env:ALEA_USER and `$env:ALEA_PASS first (your Alea LoginUserName / LoginPassword)."
+# Load .env from the repo root (same format as Codex's Import-DotEnv.ps1).
+$envFile = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) ".env"
+if (Test-Path $envFile) {
+  foreach ($line in Get-Content $envFile) {
+    $t = $line.Trim()
+    if (-not $t -or $t.StartsWith("#") -or $t -notmatch "=") { continue }
+    $k, $v = $t -split "=", 2
+    [Environment]::SetEnvironmentVariable($k.Trim(), $v.Trim().Trim('"').Trim("'"), "Process")
+  }
 }
+if (-not $Groups) { $Groups = @($env:ALEA_GROUP_ID) }
+if (-not $Groups[0]) { throw "ALEA_GROUP_ID is required (.env or environment)." }
+if (-not ($env:ALEA_AUTHORIZATION -or $env:ALEA_COOKIE -or ($env:ALEA_USER -and $env:ALEA_PASS))) {
+  Write-Warning "No ALEA_AUTHORIZATION, ALEA_COOKIE or ALEA_USER/ALEA_PASS set - expect ResponseCode 2."
+}
+$headers = @{ Accept = "application/json" }
+if ($env:ALEA_AUTHORIZATION) { $headers.Authorization = $env:ALEA_AUTHORIZATION }
+if ($env:ALEA_COOKIE)        { $headers.Cookie = $env:ALEA_COOKIE }
+if ($env:ALEA_USER)          { $headers.LoginUserName = $env:ALEA_USER; $headers.LoginPassword = $env:ALEA_PASS }
 
 # Trevor's sample uses StartDate 07 / EndDate 08 for one day, so the end
 # date is treated as exclusive: today = today .. tomorrow.
 $start = (Get-Date).Date.AddDays(-$Days)
 $end   = (Get-Date).Date.AddDays(1)
 $body = [ordered]@{
-  LoginUserName  = $env:ALEA_USER
-  LoginPassword  = $env:ALEA_PASS
   Date           = @{ StartDate = $start.ToString("yyyy-MM-dd"); EndDate = $end.ToString("yyyy-MM-dd") }
   groupBy        = $GroupBy
   groups         = $Groups
@@ -42,12 +59,12 @@ $body = [ordered]@{
   CCY            = $null
   paymentSources = $null
 }
+if ($env:ALEA_USER) { $body.LoginUserName = $env:ALEA_USER; $body.LoginPassword = $env:ALEA_PASS }
 $json = $body | ConvertTo-Json -Depth 6
 
 Write-Host "Calling $Url for $($body.Date.StartDate) .. $($body.Date.EndDate)"
 try {
-  $resp = Invoke-RestMethod -Uri $Url -Method Post -ContentType "application/json" -Body $json `
-            -Headers @{ LoginUserName = $env:ALEA_USER; LoginPassword = $env:ALEA_PASS }
+  $resp = Invoke-RestMethod -Uri $Url -Method Post -ContentType "application/json" -Body $json -Headers $headers
 } catch {
   $code = $_.Exception.Response.StatusCode.value__
   throw "Connection FAILED (HTTP $code): $($_.Exception.Message)"
@@ -56,6 +73,9 @@ try {
 # Alea wraps results as { ResponseCode, Message, <data> }; report the status.
 if ($null -ne $resp.ResponseCode) {
   Write-Host "ResponseCode: $($resp.ResponseCode)  Message: '$($resp.Message)'"
+  if ($resp.ResponseCode -eq 2) {
+    throw "Reachable but NOT authenticated (ResponseCode 2). Get Alea's supported API auth (token/header, API key or approved session cookie) - see README."
+  }
 }
 
 # Find the first array in the response - that is the row data.
