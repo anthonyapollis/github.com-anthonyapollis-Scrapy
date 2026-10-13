@@ -1,5 +1,7 @@
 # RavenTrack Postman automation
 
+Folder layout: `postman/` holds the collection, environment template and Newman runners.
+
 Self-authenticating Postman collection for the RavenTrack partner API (`https://partner.jsbsports.bet`).
 
 ## How it works
@@ -9,7 +11,7 @@ Self-authenticating Postman collection for the RavenTrack partner API (`https://
 - `Ping` (`GET /api/ping`) checks the connection: it expects HTTP 200 and `{"message": "pong"}`.
 
 ## Postman Desktop
-1. Import `RavenTrack-Automated.postman_collection.json` and `RavenTrack.postman_environment.template.json`.
+1. Import `postman/RavenTrack-Automated.postman_collection.json` and `postman/RavenTrack.postman_environment.template.json`.
 2. Select the **RavenTrack - JSB Sports** environment and paste a fresh refresh token into `refresh_token` (Current value).
 3. Send **Ping**. The token refreshes on its own. To check everything at once, use **Run collection**.
 
@@ -18,7 +20,7 @@ To get automatic refresh on your existing `RavenTrack API [Account]` collection,
 ## Headless / scheduled (Newman)
 ```powershell
 npm install -g newman
-Copy-Item RavenTrack.postman_environment.template.json RavenTrack.postman_environment.local.json
+cd postman; Copy-Item RavenTrack.postman_environment.template.json RavenTrack.postman_environment.local.json
 # paste refresh_token into the .local.json file
 .\run-raventrack.ps1
 ```

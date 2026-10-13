@@ -1,0 +1,67 @@
+{
+  "info": {
+    "name": "Alea AGMS",
+    "description": "Alea AGMS Stats API (https://lb.aleacontrol.com/AGMS). The pre-request script fills {{start_date}}/{{end_date}} with today (end date exclusive, matching Trevor's one-day sample 07 -> 08). Alea answers HTTP 200 even when the login is rejected - check ResponseCode in the body: 2 = reachable but not authenticated.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Default to today unless days_back is set in the environment.",
+          "const daysBack = Number(pm.environment.get('days_back') || 0);",
+          "const fmt = d => d.toISOString().slice(0, 10);",
+          "const today = new Date(); today.setUTCHours(0, 0, 0, 0);",
+          "const start = new Date(today); start.setUTCDate(start.getUTCDate() - daysBack);",
+          "const end = new Date(today); end.setUTCDate(end.getUTCDate() + 1);",
+          "pm.variables.set('start_date', fmt(start));",
+          "pm.variables.set('end_date', fmt(end));"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Stats - today",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Authenticated (ResponseCode is not 2)', () => pm.expect(body.ResponseCode).to.not.eql(2));",
+              "",
+              "// Find the row array and show the 10 latest rows as a table (Visualize tab).",
+              "const findRows = n => Array.isArray(n) ? n : (n && typeof n === 'object' ? Object.values(n).map(findRows).find(Boolean) : null);",
+              "const rows = findRows(body) || [];",
+              "pm.test('Rows returned', () => pm.expect(rows.length).to.be.above(0));",
+              "const dateKey = rows.length ? Object.keys(rows[0]).find(k => /date|time/i.test(k)) : null;",
+              "const latest = (dateKey ? [...rows].sort((a, b) => new Date(b[dateKey]) - new Date(a[dateKey])) : rows.slice(-10)).slice(0, 10);",
+              "const cols = latest.length ? Object.keys(latest[0]) : [];",
+              "pm.visualizer.set(`<table border=1 cellpadding=4 style=\"border-collapse:collapse;font:12px sans-serif\"><tr>{{#each cols}}<th>{{this}}</th>{{/each}}</tr>{{#each rows}}<tr>{{#each this}}<td>{{this}}</td>{{/each}}</tr>{{/each}}</table>`,",
+              "  { cols, rows: latest.map(r => cols.map(c => typeof r[c] === 'object' ? JSON.stringify(r[c]) : r[c])) });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" },
+          { "key": "LoginUserName", "value": "{{alea_username}}" },
+          { "key": "LoginPassword", "value": "{{alea_password}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"LoginUserName\": \"{{alea_username}}\",\n  \"LoginPassword\": \"{{alea_password}}\",\n  \"Date\": { \"StartDate\": \"{{start_date}}\", \"EndDate\": \"{{end_date}}\" },\n  \"groupBy\": [4],\n  \"groups\": [\"{609f0dd2-1ad2-453a-b57e-f6ac8283d30a}\"],\n  \"locations\": null,\n  \"statisticBy\": null,\n  \"games\": null,\n  \"CCY\": null,\n  \"paymentSources\": null\n}"
+        },
+        "url": "{{alea_base_url}}/api/Stats"
+      }
+    }
+  ]
+}
