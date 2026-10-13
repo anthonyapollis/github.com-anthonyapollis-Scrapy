@@ -4,15 +4,15 @@ Tests the Alea AGMS Stats API and exports the 10 latest rows to Excel.
   Usage (PowerShell):
     $env:ALEA_USER = "your LoginUserName"
     $env:ALEA_PASS = "your LoginPassword"
-    .\Get-AleaLatest.ps1                     # last 7 days
-    .\Get-AleaLatest.ps1 -Days 1 -Top 10
+    .\Get-AleaLatest.ps1                     # today
+    .\Get-AleaLatest.ps1 -Days 7 -Top 10     # last 7 days up to today
 
 Writes alea_latest.xlsx (via Excel) next to this script, or alea_latest.csv
 if Excel is not installed. Credentials are read from environment variables so
 they never end up in the file or in git.
 #>
 param(
-  [int]$Days = 7,
+  [int]$Days = 0,                                          # 0 = today only
   [int]$Top = 10,
   [string]$Url = "https://lb.aleacontrol.com/AGMS/api/Stats",
   # Defaults copied from Trevor's sample request (12 Oct 2026).
@@ -26,8 +26,10 @@ if (-not $env:ALEA_USER -or -not $env:ALEA_PASS) {
   throw "Set `$env:ALEA_USER and `$env:ALEA_PASS first (your Alea LoginUserName / LoginPassword)."
 }
 
-$end   = Get-Date
-$start = $end.AddDays(-$Days)
+# Trevor's sample uses StartDate 07 / EndDate 08 for one day, so the end
+# date is treated as exclusive: today = today .. tomorrow.
+$start = (Get-Date).Date.AddDays(-$Days)
+$end   = (Get-Date).Date.AddDays(1)
 $body = [ordered]@{
   LoginUserName  = $env:ALEA_USER
   LoginPassword  = $env:ALEA_PASS

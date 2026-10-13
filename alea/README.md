@@ -5,11 +5,12 @@
 ```powershell
 $env:ALEA_USER = "<LoginUserName>"
 $env:ALEA_PASS = "<LoginPassword>"
-.\Get-AleaLatest.ps1            # last 7 days, 10 rows
-.\Get-AleaLatest.ps1 -Days 1    # yesterday→today
+.\Get-AleaLatest.ps1            # today, 10 rows
+.\Get-AleaLatest.ps1 -Days 7    # last 7 days up to today
 ```
 
 Notes
+- Today is sent as `StartDate` = today, `EndDate` = tomorrow. Trevor's one-day sample used 07 → 08, so EndDate looks exclusive. If you see tomorrow's rows or no rows at all, Alea treats EndDate as inclusive, so set both dates to today.
 - The credentials are sent both in the JSON body and as headers (`LoginUserName`, `LoginPassword`), because Alea's documentation doesn't say which one it expects.
 - `ResponseCode` other than success (for example `2`, which came back in an earlier Postman call) means Alea rejected the request. Usually it's the credentials, or a group/date that has no data.
 - Stats is **aggregated** (grouped by location by default). "Latest rows" means the most recent aggregated rows. Transaction-level rows need Alea's raw API, which has been requested from Trevor.
