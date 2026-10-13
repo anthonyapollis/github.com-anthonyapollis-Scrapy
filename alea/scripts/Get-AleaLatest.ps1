@@ -35,8 +35,8 @@ if (Test-Path $envFile) {
     [Environment]::SetEnvironmentVariable($k.Trim(), $v.Trim().Trim('"').Trim("'"), "Process")
   }
 }
-if (-not $Groups) { $Groups = @($env:ALEA_GROUP_ID) }
-if (-not $Groups[0]) { throw "ALEA_GROUP_ID is required (.env or environment)." }
+# Group filter is optional: no ALEA_GROUP_ID = all groups the login can see.
+if (-not $Groups -and $env:ALEA_GROUP_ID) { $Groups = @($env:ALEA_GROUP_ID) }
 if (-not ($env:ALEA_AUTHORIZATION -or $env:ALEA_COOKIE -or ($env:ALEA_USER -and $env:ALEA_PASS))) {
   Write-Warning "No ALEA_AUTHORIZATION, ALEA_COOKIE or ALEA_USER/ALEA_PASS set - expect ResponseCode 2."
 }
@@ -61,7 +61,7 @@ $end   = (Get-Date).Date.AddDays(1)
 $body = [ordered]@{
   Date           = @{ StartDate = $start.ToString("yyyy-MM-dd"); EndDate = $end.ToString("yyyy-MM-dd") }
   groupBy        = $GroupBy
-  groups         = $Groups
+  groups         = $(if ($Groups) { $Groups } else { $null })
   locations      = $null
   statisticBy    = $null
   games          = $Games

@@ -10,6 +10,10 @@
       "script": {
         "type": "text/javascript",
         "exec": [
+          "// Group filter is optional: empty alea_group_id sends groups: null (all groups).",
+          "const gid = pm.environment.get('alea_group_id');",
+          "pm.variables.set('alea_groups_json', gid ? JSON.stringify([gid]) : 'null');",
+          "",
           "// Default to today unless days_back is set in the environment.",
           "const daysBack = Number(pm.environment.get('days_back') || 0);",
           "const fmt = d => d.toISOString().slice(0, 10);",
@@ -82,7 +86,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"Date\": { \"StartDate\": \"{{start_date}}\", \"EndDate\": \"{{end_date}}\" },\n  \"groupBy\": [4],\n  \"groups\": [\"{{alea_group_id}}\"],\n  \"locations\": null,\n  \"statisticBy\": null,\n  \"games\": null,\n  \"CCY\": null,\n  \"paymentSources\": null\n}"
+          "raw": "{\n  \"Date\": { \"StartDate\": \"{{start_date}}\", \"EndDate\": \"{{end_date}}\" },\n  \"groupBy\": [4],\n  \"groups\": {{alea_groups_json}},\n  \"locations\": null,\n  \"statisticBy\": null,\n  \"games\": null,\n  \"CCY\": null,\n  \"paymentSources\": null\n}"
         },
         "url": "{{alea_base_url}}/api/Stats",
         "auth": {

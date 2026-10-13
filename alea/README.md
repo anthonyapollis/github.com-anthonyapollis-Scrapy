@@ -21,16 +21,16 @@ grant_type=password&userName=<Alea login>&password=<Alea password>
 ```
 Then call Stats with `Authorization: Bearer <access_token>`. Use the same username and password you use on the GMS portal. If `/token` rejects them, ask Alea to enable API access for that user.
 
-`ALEA_GROUP_ID` / `alea_group_id` holds the group GUID from Trevor's email. It's kept out of the code.
+`ALEA_GROUP_ID` / `alea_group_id` is **optional**. Leave it empty to get all groups your login can see, or set it to the group GUID from Trevor's 12 Oct email (`{609f0dd2-…}`) to filter to that group.
 
 ## Postman
 1. Import both files from `postman/` and select **Alea - JSB Sports**.
-2. Fill in `alea_group_id`, `alea_username` and `alea_password` in **Current value** only. The collection fetches the token automatically.
+2. Fill in `alea_username` and `alea_password` in **Current value** only. The collection fetches the token automatically.
 3. Send **Stats - today**. The tests check HTTP 200, `ResponseCode != 2`, and that rows came back. **Visualize** shows the 10 latest rows.
 
 ## Excel
 ```powershell
-Copy-Item ..\.env.example ..\.env   # fill in ALEA_GROUP_ID, ALEA_USER, ALEA_PASS
+Copy-Item ..\.env.example ..\.env   # fill in ALEA_USER, ALEA_PASS (ALEA_GROUP_ID optional)
 .\scripts\Get-AleaLatest.ps1        # today -> scripts\alea_latest.xlsx
 ```
 The script stops with a clear message on `ResponseCode 2`. It runs on Windows PowerShell 5.1 and PowerShell 7.
